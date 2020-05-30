@@ -16,8 +16,7 @@ var controller = {
         const emailExist = await User.findOne({email: req.body.email});
         if (emailExist) return res.status(400).send('El email se encuentra registrado.');
         // Encrypto la contraseña
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(req.body.password, salt);
+        const hashedPassword = await bcrypt.hash(req.body.password, 10);
         // Creo el usuario
         const user = new User({
             name: req.body.name,
@@ -36,14 +35,14 @@ var controller = {
         const  validation = userValidation.loginValidation(req.body);
         if (validation.error) return res.status(400).send(validation.error.details[0].message);
         // Valido que existe el email
-        const userEmail = await User.findOne({email: req.body.email});
-        if (!userEmail) return res.status(400).send('El email o la contraseña no es incorrecta.');
+        const userByEmail = await User.findOne({email: req.body.email});
+        if (!userByEmail) return res.status(400).send('El email o la contraseña es incorrecta.');
         // Valido la contraseña
-        const validPass = await bcrypt.compare(req.body.password, userEmail.password);
-        if (!validPass) return res.status(400).send('El email o la contraseña no es incorrecta.');
+        const validPass = await bcrypt.compare(req.body.password, userByEmail.password);
+        if (!validPass) return res.status(400).send('El email o la contraseña es incorrecta.');
         // Creo y asigno el token
-        const token = jwt.sign({user: userEmail._id}, process.env.TOKEN_SECRET);
-        return res.status(200).header('auth-token', token).send(token);
+        const token = jwt.sign({user: userByEmail}, process.env.TOKEN_SECRET);
+        return res.status(200).header('Authorization', token).send(token);
     },
     updateUser: async (req, res) => {
         let id = req.params.id;
@@ -51,8 +50,7 @@ var controller = {
         const  validation = userValidation.registerValidation(req.body);
         if (validation.error) return res.status(400).send(validation.error.details[0].message);
         // Encrypto la contraseña
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(req.body.password, salt);
+        const hashedPassword = await bcrypt.hash(req.body.password, 10);
         // Creo el usuario
         const user = {
             name: req.body.name,
@@ -60,8 +58,8 @@ var controller = {
             password: hashedPassword
         };
         User.findByIdAndUpdate(id, user, {new:true}, (err, userUpdated) => {
-            if(err) return res.status(500).send({message:'Error al actualizar'});
-            if(!userUpdated) return res.status(404).send({message: 'No se ha podido actualizar el usuario'});
+            if(err) return res.status(500).send({message:'No se ha podido actualizar el usuario'});
+            if(!userUpdated) return res.status(404).send({message: 'No hay usuarios con este id'});
 
             return res.status(200).send({message:'El usuario fue actualizado.',user: userUpdated});
         });
@@ -78,10 +76,10 @@ var controller = {
     getAllUsers: (req, res) => {
         User.find({}).exec((err, users) => {
            if(err) return res.status(500).send({message: 'Error al obtener los datos'});
-           if(!users) return res.status(404).send({message: 'No hay usuarios'});
+           if(users.length < 1) return res.status(404).send({message: 'No hay usuarios'});
            
            return res.status(200).send(users);
-       });
+       });   
     },
     deleteUser: (req, res) => {
         let id = req.params.id;
