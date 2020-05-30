@@ -41,7 +41,7 @@ var controller = {
         const validPass = await bcrypt.compare(req.body.password, userByEmail.password);
         if (!validPass) return res.status(400).send('El email o la contraseña es incorrecta.');
         // Creo y asigno el token
-        const token = jwt.sign({user: userByEmail}, process.env.TOKEN_SECRET);
+        const token = jwt.sign({user: userByEmail}, process.env.TOKEN_SECRET, {expiresIn: 60});
         return res.status(200).header('Authorization', token).send(token);
     },
     updateUser: async (req, res) => {
