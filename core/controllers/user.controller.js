@@ -2,7 +2,9 @@
 const User = require('../models/user.model');
 const userValidation = require('../helper/userValidation');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken'); 
+const jwt = require('jsonwebtoken');
+var fs = require('fs');
+var path = require('path'); 
 
 var controller = {
     home: (req, res) => {
@@ -89,7 +91,49 @@ var controller = {
 
             return res.status(200).send({message: 'Usuario eliminado', userDeleted});
         })
-    }
+    },
+    uploadImage: (req, res) => {
+        let userId = req.params.id;
+        var fileName = 'Imagen so subida.';
+  
+        if (req.files) {
+          var filePath = req.files.image.path;
+          var fileSplit = filePath.split('\\');
+          var fileName = fileSplit[1];
+          var extSplit = fileName.split('.');
+          var fileExt = extSplit[1];
+  
+          if (fileExt == 'png' || fileExt == 'jpg' || fileExt == 'jpeg' || fileExt == 'gif') {
+  
+            User.findByIdAndUpdate(userId, {image: fileName}, {new:true}, (err, projectUpdated) => {
+              if (err) return res.status(500).send({message: 'La imagen no se ha subido'});
+              if (!projectUpdated) return res.status(404).send({message: 'El proyecto no existe.'});
+    
+              return res.status(200).send({project: projectUpdated});
+            });
+  
+          } else {
+            fs.unlink(filePath, (err) => {
+              return res.status(200).send({message: 'La extension no es valida'});
+            });
+          }
+  
+        } else {
+          res.status(500).send({message: fileName});
+        }
+      },
+      getImageFile: (req, res) => {
+        var file = req.params.image;
+        var path_file = './uploads/' + file;
+  
+        fs.exists(path_file, (exists) => {
+          if (exists) {
+            return res.sendFile(path.resolve(path_file));
+          } else {
+            return res.status(200).send({message: 'No existe la imagen'});
+          }
+        })
+      }
 }
 
 module.exports = controller;
