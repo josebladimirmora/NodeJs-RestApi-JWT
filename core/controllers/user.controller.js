@@ -43,7 +43,7 @@ var controller = {
         const validPass = await bcrypt.compare(req.body.password, userByEmail.password);
         if (!validPass) return res.status(400).send('El email o la contraseña es incorrecta.');
         // Creo y asigno el token
-        const token = jwt.sign({user: userByEmail}, process.env.TOKEN_SECRET, {expiresIn: 60});
+        const token = jwt.sign({user: userByEmail}, process.env.TOKEN_SECRET, {expiresIn: '1h'});
         return res.status(200).header('Authorization', token).send(token);
     },
     updateUser: async (req, res) => {
@@ -95,26 +95,34 @@ var controller = {
     uploadImage: (req, res) => {
         let userId = req.params.id;
         var fileName = 'Imagen so subida.';
-  
-        if (req.files) {
-          var filePath = req.files.image.path;
-          var fileSplit = filePath.split('\\');
-          var fileName = fileSplit[1];
-          var extSplit = fileName.split('.');
-          var fileExt = extSplit[1];
+        if (req.file) {
+          var fileExt = req.file.originalname.split('.')[1];
+          var fileName = req.file.filename + '.' + fileExt;
+          let path_file = req.file.path;
+          fs.renameSync(path_file, path_file + '.' + fileExt);
   
           if (fileExt == 'png' || fileExt == 'jpg' || fileExt == 'jpeg' || fileExt == 'gif') {
-  
-            User.findByIdAndUpdate(userId, {image: fileName}, {new:true}, (err, projectUpdated) => {
+
+            User.findById(userId, (err, user) => {
+              let oldImage = user.image;
+              if (oldImage != undefined) {
+                fs.unlink('uploads\\' + oldImage, (err) => {
+                  
+                });
+              }
+            });
+
+            User.findByIdAndUpdate(userId, {image: fileName}, {new:true}, (err, userUpdated) => {
               if (err) return res.status(500).send({message: 'La imagen no se ha subido'});
-              if (!projectUpdated) return res.status(404).send({message: 'El proyecto no existe.'});
+              if (!userUpdated) return res.status(404).send({message: 'El proyecto no existe.'});
     
-              return res.status(200).send({project: projectUpdated});
+              return res.status(200).send({user: userUpdated});
             });
   
           } else {
-            fs.unlink(filePath, (err) => {
-              return res.status(200).send({message: 'La extension no es valida'});
+            fs.unlink('uploads\\' + fileName, (err) => {
+              if (err) res.status(500).send({err});
+              return res.status(500).send({message: 'La extension no es valida, asegurate que no haya punto en el nombre del archivo'});
             });
           }
   
@@ -130,9 +138,9 @@ var controller = {
           if (exists) {
             return res.sendFile(path.resolve(path_file));
           } else {
-            return res.status(200).send({message: 'No existe la imagen'});
+            return res.status(404).send({message: 'No existe la imagen'});
           }
-        })
+        });
       }
 }
 
